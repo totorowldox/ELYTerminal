@@ -1,0 +1,32 @@
+name: Private macOS Build
+
+on:
+  push:
+    branches: [private]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install --no-self-update
+      - name: Build the ad-hoc signed disk image
+        run: scripts/mac-app.sh
+      - name: Upload the disk image
+        uses: actions/upload-artifact@v4
+        with:
+          name: ELYTerminal-private-macos-arm64-${{ github.sha }}
+          path: target/release/ELYTerminal-*.dmg
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
