@@ -164,6 +164,10 @@ Progress truth. Top to bottom, one at a time. A task is ticked only after its co
 
 - [x] T64 Release v0.1.7 with T59 to T63, T65 and T66: version 0.1.7; the macOS disk image, the Windows zip and the Linux tarball, each from its script; the notes list what changed in English and Chinese.
 
-## 34. Nushell
+## 34. Natural text editing on macOS
 
-- [x] T68 Nushell 0.116.1 or later loads integration after its startup configuration: native OSC 133 marks, percent-safe folder reports, control-free folder and command titles, and literal file-drop quoting. User prompts and hooks stay; CI and the local Linux test image provision the pinned shell.
+- [ ] T67 Natural text editing on macOS, which the owner asked for: a switch in Settings › Terminal, off by default, that sends Option-Left and Option-Right as ESC b and ESC f, Option-Backspace and Option-Delete as ESC DEL and ESC d, Command-Left and Command-Right as Ctrl-A and Ctrl-E, and Command-Backspace and Command-Delete as Ctrl-U and Ctrl-K, as iTerm2's preset.
+
+## 35. Nushell
+
+- [ ] T68 Nushell 0.116.1 or later loads integration after its startup configuration: native OSC 133 marks, percent-safe folder reports, control-free folder and command titles, and literal file-drop quoting. User prompts and hooks stay; CI and the local Linux test image provision the pinned shell.
