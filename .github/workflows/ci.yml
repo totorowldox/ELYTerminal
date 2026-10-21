@@ -10,6 +10,10 @@ jobs:
     runs-on: [self-hosted, macos-arm64]
     steps:
       - uses: actions/checkout@v7
+      - name: Provision Nushell 0.116.1
+        run: |
+          sh scripts/install-nu.sh "$RUNNER_TEMP/nu"
+          echo "$RUNNER_TEMP/nu" >> "$GITHUB_PATH"
       # The runner's PATH lacks the host's rustup.
       - run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
       - run: rustup toolchain install --no-self-update
@@ -22,6 +26,31 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v7
+      - name: Provision Nushell 0.116.1
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # SHA-256 digests from the official release's SHA256SUMS asset.
+          switch ($env:RUNNER_ARCH) {
+            'X64' {
+              $target = 'x86_64-pc-windows-msvc'
+              $checksum = '6658c9e61fe42c88326c1caa99e8dc9ad99bec6c0bc353e6ecb7c5d3f79feed7'
+            }
+            'ARM64' {
+              $target = 'aarch64-pc-windows-msvc'
+              $checksum = 'e02a822226f4ea841cdfece707bac2a8b5888b3cfb6d4065a502e01ea5237092'
+            }
+            default { throw "Unsupported Nushell architecture: $env:RUNNER_ARCH" }
+          }
+          $archive = Join-Path $env:RUNNER_TEMP "nu-0.116.1-$target.zip"
+          $destination = Join-Path $env:RUNNER_TEMP 'nu'
+          Invoke-WebRequest "https://github.com/nushell/nushell/releases/download/0.116.1/nu-0.116.1-$target.zip" -UseBasicParsing -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $checksum) {
+            throw 'Nushell archive checksum mismatch'
+          }
+          Expand-Archive -Path $archive -DestinationPath $destination -Force
+          Remove-Item $archive
+          $destination | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - run: rustup toolchain install --no-self-update
       - run: cargo test --locked --quiet
       - run: cargo build --locked
@@ -34,6 +63,11 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v7
+      - name: Provision Nushell 0.116.1
+        run: |
+          sh scripts/install-nu.sh "$RUNNER_TEMP/nu"
+          chmod o+rx "$RUNNER_TEMP" "$RUNNER_TEMP/nu"
+          echo "$RUNNER_TEMP/nu" >> "$GITHUB_PATH"
       # The job container comes without rustup.
       - run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --default-toolchain none

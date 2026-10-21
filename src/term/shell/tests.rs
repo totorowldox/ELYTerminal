@@ -59,6 +59,14 @@ struct Run {
 impl Run {
     /// Starts `shell` in a fresh folder; `files` go under its HOME first.
     fn start(shell: &str, files: &[(&str, &str)]) -> Self {
+        Self::start_with(shell, files, |_, _| {})
+    }
+
+    fn start_with(
+        shell: &str,
+        files: &[(&str, &str)],
+        setup: impl FnOnce(&mut Launch, &Path),
+    ) -> Self {
         crate::testlog::init();
         // Two tests may run one shell at once.
         static RUNS: AtomicUsize = AtomicUsize::new(0);
@@ -68,7 +76,7 @@ impl Run {
             RUNS.fetch_add(1, Ordering::Relaxed)
         ));
         let (dir, home, start) = (
-            root.join("integration"),
+            root.join("integration with '## quotes"),
             root.join("home"),
             root.join("start"),
         );
@@ -82,6 +90,7 @@ impl Run {
         install(&dir).expect("scripts install");
         let mut launch = launch(shell, start.clone(), &dir).expect("a launch");
         launch.env.push(("HOME".into(), home.display().to_string()));
+        setup(&mut launch, &home);
         let (pty, events) = spawn(&launch, (100, 30), (8, 16), config(&Settings::default()))
             .expect("the shell starts");
         Self {
@@ -448,6 +457,7 @@ fn each_shell_reads_a_dropped_path_its_own_way() {
         ("pwsh", Quote::PowerShell),
         ("powershell", Quote::PowerShell),
         ("cmd", Quote::Cmd),
+        ("nu", Quote::Nushell),
         ("other", Quote::Posix),
     ] {
         let program = dir.join(name);
@@ -458,3 +468,5 @@ fn each_shell_reads_a_dropped_path_its_own_way() {
         assert_eq!(launch.quote, quote, "{name}");
     }
 }
+
+mod nushell;

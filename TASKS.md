@@ -163,3 +163,7 @@ Progress truth. Top to bottom, one at a time. A task is ticked only after its co
 ## 33. Release
 
 - [x] T64 Release v0.1.7 with T59 to T63, T65 and T66: version 0.1.7; the macOS disk image, the Windows zip and the Linux tarball, each from its script; the notes list what changed in English and Chinese.
+
+## 34. Nushell
+
+- [x] T68 Nushell 0.116.1 or later loads integration after its startup configuration: native OSC 133 marks, percent-safe folder reports, control-free folder and command titles, and literal file-drop quoting. User prompts and hooks stay; CI and the local Linux test image provision the pinned shell.

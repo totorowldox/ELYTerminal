@@ -7,10 +7,13 @@ use std::{
 use anyhow::Context as _;
 use gpui::{App, Global};
 
-use super::{drop::Quote, pty::Launch};
+use super::{
+    drop::{Quote, nushell_literal},
+    pty::Launch,
+};
 
 /// Each script, by its path under the integration folder.
-const SCRIPTS: [(&str, &str); 4] = [
+const SCRIPTS: [(&str, &str); 5] = [
     (
         "zsh/.zshenv",
         include_str!("../../assets/shell-integration/zsh/.zshenv"),
@@ -26,6 +29,10 @@ const SCRIPTS: [(&str, &str); 4] = [
     (
         "pwsh/elyterminal.ps1",
         include_str!("../../assets/shell-integration/pwsh/elyterminal.ps1"),
+    ),
+    (
+        "nu/elyterminal.nu",
+        include_str!("../../assets/shell-integration/nu/elyterminal.nu"),
     ),
 ];
 
@@ -92,6 +99,7 @@ pub fn launch(shell: &str, cwd: PathBuf, dir: &Path) -> anyhow::Result<Launch> {
         quote: match name.as_str() {
             "pwsh" | "powershell" => Quote::PowerShell,
             "cmd" => Quote::Cmd,
+            "nu" => Quote::Nushell,
             _ => Quote::Posix,
         },
     };
@@ -120,6 +128,20 @@ pub fn launch(shell: &str, cwd: PathBuf, dir: &Path) -> anyhow::Result<Launch> {
             let data = format!("{}:{rest}", dir.display());
             launch.env.push(("XDG_DATA_DIRS".into(), data));
             launch.env.push(("ELY_FISH_XDG_DATA_DIRS".into(), previous));
+        }
+        "nu" => {
+            let file = nushell_literal(&script("nu/elyterminal.nu"));
+            let mut args = Vec::new();
+            if shell.is_empty() {
+                args.push("--login".into());
+            }
+            args.extend([
+                "--execute".into(),
+                format!(
+                    "try {{ source {file} }} catch {{ |error| print -e $\"ELYTerminal: Nushell integration failed: ($error.msg)\"; exit 1 }}"
+                ),
+            ]);
+            launch.program = Some((path.clone(), args));
         }
         "pwsh" | "powershell" => {
             let file = script("pwsh/elyterminal.ps1").replace('\'', "''");
@@ -158,3 +180,6 @@ fn default_shell() -> anyhow::Result<String> {
 
 #[cfg(all(test, unix))]
 mod tests;
+
+#[cfg(test)]
+mod nushell;

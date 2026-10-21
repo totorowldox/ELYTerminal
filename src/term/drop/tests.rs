@@ -59,8 +59,53 @@ fn a_cmd_path_is_double_quoted_its_trailing_backslashes_doubled_and_one_cmd_expa
 }
 
 #[test]
+fn nushell_reads_dropped_paths_as_literal_arguments() {
+    let paths = [
+        "/tmp/plain",
+        "/tmp/a space",
+        "/tmp/it's",
+        "/tmp/a\"quote",
+        "/tmp/back\\slash",
+        "/tmp/$env.HOME",
+        "/tmp/(1 + 1)",
+        "/tmp/*?[abc]",
+        "/tmp/中文 café 🐚",
+        "C:\\Windows\\",
+        "/tmp/'#",
+        "/tmp/'##",
+        "/tmp/'###'####",
+        "/tmp/r#'nested'#",
+        "/tmp/ends'",
+    ];
+    let arguments = typed_as(Quote::Nushell, &paths);
+    assert!(arguments.ends_with(' '), "each path is followed by a space");
+    let command =
+        format!("def capture [...args: string] {{ $args | to json --raw }}; capture {arguments}");
+    let output = std::process::Command::new("nu")
+        .args(["--no-config-file", "-c", &command])
+        .output()
+        .expect("Nushell must be installed and runnable as nu");
+    assert!(
+        output.status.success(),
+        "Nushell rejected dropped paths: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let actual: Vec<String> = serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+        panic!(
+            "Nushell did not return argument JSON: {error}; stdout: {}; stderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    assert_eq!(
+        actual, paths,
+        "Nushell must preserve every argument exactly"
+    );
+}
+
+#[test]
 fn a_path_with_a_control_character_types_nothing() {
-    for quote in [Quote::Posix, Quote::PowerShell, Quote::Cmd] {
+    for quote in [Quote::Posix, Quote::PowerShell, Quote::Cmd, Quote::Nushell] {
         let paths = [PathBuf::from("/ok"), PathBuf::from("/tmp/a\nls")];
         let error = typed(&paths, quote).unwrap_err();
         assert!(error.to_string().contains("control character"), "{error}");

@@ -22,6 +22,32 @@ pub enum Quote {
     PowerShell,
     /// Double quotes, past which cmd still expands `%` and, under `/v:on`, `!`.
     Cmd,
+    /// Nushell raw strings, with a delimiter absent from the path.
+    Nushell,
+}
+
+/// Quotes text without interpolation or escapes, extending the raw delimiter past collisions.
+pub(super) fn nushell_literal(text: &str) -> String {
+    let mut hashes = 1;
+    let mut after_quote = None;
+    for byte in text.bytes() {
+        after_quote = match (byte, after_quote) {
+            (b'\'', _) => Some(0),
+            (b'#', Some(count)) => {
+                hashes = hashes.max(count + 2);
+                Some(count + 1)
+            }
+            _ => None,
+        };
+    }
+    let mut out = String::with_capacity(text.len() + 2 * hashes + 4);
+    out.push('r');
+    out.extend(std::iter::repeat_n('#', hashes));
+    out.push('\'');
+    out.push_str(text);
+    out.push('\'');
+    out.extend(std::iter::repeat_n('#', hashes));
+    out
 }
 
 /// The text `paths` type, each followed by a space, as `quote` keeps each one literal.
@@ -35,15 +61,20 @@ pub fn typed(paths: &[PathBuf], quote: Quote) -> anyhow::Result<String> {
                 !text.chars().any(char::is_control),
                 "{text:?} holds a control character, which would act as typed"
             );
-            let mut out = String::with_capacity(text.len() + 3);
-            match quote {
-                Quote::Posix => text.chars().for_each(|ch| {
-                    if SPECIAL.contains(ch) {
-                        out.push('\\');
-                    }
-                    out.push(ch);
-                }),
+            let mut out = match quote {
+                Quote::Nushell => nushell_literal(text),
+                Quote::Posix => {
+                    let mut out = String::with_capacity(text.len() + 3);
+                    text.chars().for_each(|ch| {
+                        if SPECIAL.contains(ch) {
+                            out.push('\\');
+                        }
+                        out.push(ch);
+                    });
+                    out
+                }
                 Quote::PowerShell => {
+                    let mut out = String::with_capacity(text.len() + 3);
                     out.push('\'');
                     text.chars().for_each(|ch| {
                         if SINGLE.contains(&ch) {
@@ -52,6 +83,7 @@ pub fn typed(paths: &[PathBuf], quote: Quote) -> anyhow::Result<String> {
                         out.push(ch);
                     });
                     out.push('\'');
+                    out
                 }
                 Quote::Cmd => {
                     anyhow::ensure!(
@@ -60,9 +92,9 @@ pub fn typed(paths: &[PathBuf], quote: Quote) -> anyhow::Result<String> {
                     );
                     // A program reads a backslash before the closing quote as a quote.
                     let trailing = text.len() - text.trim_end_matches('\\').len();
-                    out = format!("\"{text}{}\"", "\\".repeat(trailing));
+                    format!("\"{text}{}\"", "\\".repeat(trailing))
                 }
-            }
+            };
             out.push(' ');
             Ok(out)
         })
