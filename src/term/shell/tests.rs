@@ -282,8 +282,7 @@ fn a_script_it_cannot_read_fails_the_install() {
 #[test]
 fn zsh_reports_its_folder_byte_for_byte_and_its_titles() {
     // A theme that sets PS1 in its own hook, which runs after ours.
-    let theme =
-        "autoload -Uz add-zsh-hook\n_theme() { PS1='THEME %? > ' }\nadd-zsh-hook precmd _theme";
+    let theme = "setopt nounset\nautoload -Uz add-zsh-hook\n_theme() { PS1='THEME %? > ' }\nadd-zsh-hook precmd _theme";
     let mut run = Run::start(&installed("zsh"), &[(".zshrc", theme)]);
     run.walk("(( $+functions[_ely_precmd] )) && echo ELY-LOAD''ED");
     run.until("title", |run| {
@@ -470,3 +469,4 @@ fn each_shell_reads_a_dropped_path_its_own_way() {
 }
 
 mod nushell;
+mod wsl;
